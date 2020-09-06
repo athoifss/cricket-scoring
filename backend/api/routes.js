@@ -25,4 +25,8 @@ router.post("/out", (req,res)=>{
   api.outSubmit(req,res)
 })
 
+router.put("/currBowler", (req,res)=>{
+  api.changeCurrBowler(req,res)
+})
+
 module.exports = router;

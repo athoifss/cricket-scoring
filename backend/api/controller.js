@@ -176,6 +176,43 @@ exports.outSubmit = async function (req, res) {
   });
 };
 
+exports.changeCurrBowler = function (req, res) {
+  const dbo = getDb();
+  const { matchId, innings, bowlNum } = req.body;
+  console.log(req.body);
+  let findData = {
+    _id: ObjectId(matchId),
+  };
+
+  let newData = {};
+  if (parseInt(innings) == 1) {
+    newData = {
+      $set: {
+        inn1: {
+          currBowler: parseInt(bowlNum),
+        },
+      },
+    };
+  } else {
+    newData = {
+      $set: {
+        inn2: {
+          currBowler: parseInt(bowlNum),
+        },
+      },
+    };
+  }
+
+  dbo.collection("match").updateOne(findData, newData, (error, result) => {
+    if (error) {
+      console.log(err);
+      res.status(500).json({ message: "Error occured" });
+    } else {
+      res.status(200).json({ message: "Sucess" });
+    }
+  });
+};
+
 function updateBat(matchId, innings, batNum, run, isOut) {
   return new Promise((resolve, reject) => {
     const dbo = getDb();
@@ -322,17 +359,17 @@ function updateMatchData(matchId, innings, nxtStriker, nxtNonStriker) {
       newData = {
         $set: {
           inn1: {
-            striker: nxtStriker,
-            nonStriker: nxtNonStriker
+            striker: parseInt(nxtStriker),
+            nonStriker: parseInt(nxtNonStriker),
           },
         },
       };
     } else {
       newData = {
         $set: {
-          inn1: {
-            striker: nxtStriker,
-            nonStriker: nxtNonStriker
+          inn2: {
+            striker: parseInt(nxtStriker),
+            nonStriker: parseInt(nxtNonStriker),
           },
         },
       };
@@ -346,4 +383,3 @@ function updateMatchData(matchId, innings, nxtStriker, nxtNonStriker) {
     });
   });
 }
-
