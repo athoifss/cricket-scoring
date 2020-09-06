@@ -1,6 +1,5 @@
 const getDb = require("./helpers/db").getDb;
 const time = require("./helpers/time");
-const misc = require("./helpers/misc");
 const ObjectId = require("mongodb").ObjectID;
 
 exports.addNewUser = function (req, res) {
@@ -30,12 +29,17 @@ exports.addNewMatch = function (req, res) {
     teamHome,
     teamAway,
     venue,
-    batting: [],
-    bowling: [],
-    extras: [],
-    howOut: [],
-    ballByBall: [],
     time: currTime,
+    inn1: {
+      striker: 0,
+      nonStriker: 0,
+      currBowler: 0,
+    },
+    inn2: {
+      striker: 0,
+      nonStriker: 0,
+      currBowler: 0,
+    },
   };
   dbo.collection("match").insertOne(newData, (error, result) => {
     if (error) {
@@ -44,88 +48,302 @@ exports.addNewMatch = function (req, res) {
         message: "Could not add new record",
       });
     } else {
-      res.status(200).json({
-        message: "Match added",
-      });
-    }
-  });
-};
-
-exports.addNewBowl = function (req, res) {
-  const dbo = getDb();
-  const { matchId, name } = req.body;
-  let bowlUid = `bat_${matchId}_${misc.randomString(5)}`;
-
-  let findData = {
-    _id: ObjectId(matchId),
-  };
-
-  let newData = {
-    $push: {
-      bowling: {
-        name: name,
-        bowlUid,
-        runs: 0,
-        overs: 0,
-        balls: 0,
-        wickets: 0,
-        economy: parseFloat(0),
-      },
-    },
-  };
-
-  dbo.collection("match").updateOne(findData, newData, (error, result) => {
-    if (error) {
-      console.log(err);
-      res.status(500).json({
-        message: "Could not add new record",
-      });
-    } else {
-      res.status(200).json({
-        message: "Bowl added",
-      });
+      res.status(200).json({ message: "Success: New Match Added" });
     }
   });
 };
 
 exports.addNewBat = function (req, res) {
   const dbo = getDb();
-  const { matchId, name } = req.body;
-  let batUid = `${matchId}_${misc.randomString(5)}`;
-
-  let findData = {
-    _id: ObjectId(matchId),
-  };
+  const { matchId, num, name, innings } = req.body;
 
   let newData = {
-    $push: {
-      batting: {
-        name: name,
-        batUid,
-        runs: 0,
-        balls: 0,
-        strikeRate: parseFloat(0),
-        "0s": 0,
-        "1s": 0,
-        "2s": 0,
-        "3s": 0,
-        "4s": 0,
-        "5s": 0,
-        "6s": 0,
-      },
-    },
+    match: ObjectId(matchId),
+    innings: parseInt(innings),
+    num: parseInt(num),
+    name,
+    "1s": 0,
+    "2s": 0,
+    "3s": 0,
+    "4s": 0,
+    "5s": 0,
+    "6s": 0,
+    balls: 0,
   };
-
-  dbo.collection("match").updateOne(findData, newData, (error, result) => {
+  dbo.collection("batting").insertOne(newData, (error, result) => {
     if (error) {
-      console.log(err);
+      console.log(error);
       res.status(500).json({
         message: "Could not add new record",
       });
     } else {
+      res.status(200).json({ message: "Added new bat" });
+    }
+  });
+};
+
+exports.addNewBowl = function (req, res) {
+  const dbo = getDb();
+  const { matchId, num, name, innings } = req.body;
+
+  let newData = {
+    match: ObjectId(matchId),
+    name,
+    innings: parseInt(innings),
+    num: parseInt(num),
+    runs: 0,
+    ballsActual: 0,
+    ballsLegal: 0,
+    wickets: 0,
+  };
+  dbo.collection("bowling").insertOne(newData, (error, result) => {
+    if (error) {
+      console.log(err);
+      res.status(500).json({
+        message: "Could not add new bowler",
+      });
+    } else {
       res.status(200).json({
-        message: "Bat added",
+        message: "Success: New Bowler Added",
       });
     }
   });
 };
+
+exports.ballSubmit = async function (req, res) {
+  const {
+    matchId,
+    innings,
+    ballActual,
+    ballLegal,
+    batNum,
+    bowlNum,
+    nxtStriker,
+    nxtNonStriker,
+    runs,
+    isBallLegal,
+    isOut,
+    extras,
+  } = req.body;
+  try {
+    await updateBat(matchId, innings, batNum, runs, isOut);
+    await updateBowl(matchId, innings, bowlNum, runs, isBallLegal, isOut);
+    await updateMatchData(matchId, innings, nxtStriker, nxtNonStriker);
+    await updateBallByBall(
+      matchId,
+      innings,
+      batNum,
+      bowlNum,
+      ballActual,
+      ballLegal,
+      runs,
+      extras
+    );
+    console.log("Bat && Bowl && BallByBall Updated");
+    res.status(200).json({ message: "Success" });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Error: Could not do submit" });
+  }
+};
+
+exports.outSubmit = async function (req, res) {
+  const { matchId, innings, bowlNum, batNum, howOut, wicketNo } = req.body;
+
+  let fielder;
+  if (!req.body.fielder) {
+    fielder = null;
+  } else {
+    fielder = req.body.fielder;
+  }
+  let newData = {
+    match: ObjectId(matchId),
+    innings: parseInt(innings),
+    bowlNum: parseInt(bowlNum),
+    batNum: parseInt(batNum),
+    howOut,
+    fielder,
+    wicketNo: parseInt(wicketNo),
+  };
+  const dbo = getDb();
+  dbo.collection("howOut").insertOne(newData, (error, result) => {
+    if (error) {
+      console.log(error);
+      res.status(500).json({ message: "Failed" });
+    } else {
+      res.status(200).json({ message: "Success" });
+    }
+  });
+};
+
+function updateBat(matchId, innings, batNum, run, isOut) {
+  return new Promise((resolve, reject) => {
+    const dbo = getDb();
+    let findData = {
+      match: ObjectId(matchId),
+      innings,
+      num: batNum,
+    };
+    let runs = parseInt(run);
+    let newData = {};
+    switch (parseInt(runs)) {
+      case 1:
+        newData = {
+          $inc: {
+            "1s": 1,
+          },
+        };
+        break;
+      case 2:
+        newData = {
+          $inc: {
+            "2s": 1,
+          },
+        };
+        break;
+      case 3:
+        newData = {
+          $inc: {
+            "3s": 1,
+          },
+        };
+        break;
+      case 4:
+        newData = {
+          $inc: {
+            "4s": 1,
+          },
+        };
+        break;
+      case 5:
+        newData = {
+          $inc: {
+            "5s": 1,
+          },
+        };
+        break;
+
+      case 6:
+        newData = {
+          $inc: {
+            "6s": runs,
+          },
+        };
+        break;
+    }
+    newData["$inc"].balls = 1;
+    dbo.collection("batting").updateOne(findData, newData, (error, result) => {
+      if (error) {
+        console.log(error);
+        reject(error);
+      } else {
+        resolve(result);
+      }
+    });
+  });
+}
+
+function updateBowl(matchId, innings, bowlNum, run, isBallLegal, isOut) {
+  return new Promise((resolve, reject) => {
+    const dbo = getDb();
+    let findData = {
+      match: ObjectId(matchId),
+      num: parseInt(bowlNum),
+      innings,
+    };
+    let newData = {
+      $inc: {
+        runs: parseInt(run),
+      },
+    };
+    newData["$inc"].ballsActual = 1;
+    if (isBallLegal) {
+      newData["$inc"].ballsLegal = 1;
+    }
+    if (isOut) {
+      newData["$inc"].wickets = 1;
+    }
+    dbo.collection("bowling").updateOne(findData, newData, (error, result) => {
+      if (error) {
+        reject(err);
+      } else {
+        resolve(result);
+      }
+    });
+  });
+}
+
+function updateBallByBall(
+  matchId,
+  innings,
+  batNum,
+  bowlNum,
+  ballActual,
+  ballLegal,
+  runs,
+  extras,
+  nxtStriker,
+  nxtNonStriker
+) {
+  return new Promise((resolve, reject) => {
+    const dbo = getDb();
+    let newData = {
+      matchId: ObjectId(matchId),
+      innings: parseInt(innings),
+      batNum: parseInt(batNum),
+      bowlNum: parseInt(bowlNum),
+      ballActual: parseInt(ballActual),
+      ballLegal: parseInt(ballLegal),
+      runs: parseInt(runs),
+      extras,
+      nxtStriker: parseInt(nxtStriker),
+      nxtNonStriker: parseInt(nxtNonStriker),
+    };
+
+    dbo.collection("ballByBall").insertOne(newData, (error, result) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(result);
+      }
+    });
+  });
+}
+
+function updateMatchData(matchId, innings, nxtStriker, nxtNonStriker) {
+  const dbo = getDb();
+  return new Promise((resolve, reject) => {
+    let findData = {
+      _id: ObjectId(matchId),
+    };
+
+    let newData = {};
+    if (parseInt(innings) == 1) {
+      newData = {
+        $set: {
+          inn1: {
+            striker: nxtStriker,
+            nonStriker: nxtNonStriker
+          },
+        },
+      };
+    } else {
+      newData = {
+        $set: {
+          inn1: {
+            striker: nxtStriker,
+            nonStriker: nxtNonStriker
+          },
+        },
+      };
+    }
+    dbo.collection("match").updateOne(findData, newData, (error, result) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(result);
+      }
+    });
+  });
+}
+
