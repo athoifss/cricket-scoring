@@ -227,7 +227,70 @@ exports.battingGetAll = (req, res) => {
         console.log(err);
         res.status(500).json({ message: "Error" });
       } else {
-        console.log(result)
+        console.log(result);
+        res.status(200).json(result);
+      }
+    });
+};
+
+exports.bowlingGetAll = (req, res) => {
+  const dbo = getDb();
+  const matchId = req.params.matchId;
+  let findData = {
+    match: ObjectId(matchId),
+  };
+  dbo
+    .collection("bowling")
+    .find(findData)
+    .toArray((err, result) => {
+      if (err) {
+        console.log(err);
+        res.status(500).json({ message: "Error" });
+      } else {
+        console.log(result);
+        res.status(200).json(result);
+      }
+    });
+};
+
+exports.howOutGetAll = (req, res) => {
+  const dbo = getDb();
+  const matchId = req.params.matchId;
+  let findData = {
+    match: ObjectId(matchId),
+  };
+  dbo
+    .collection("howOut")
+    .find(findData)
+    .toArray((err, result) => {
+      if (err) {
+        console.log(err);
+        res.status(500).json({ message: "Error" });
+      } else {
+        console.log(result);
+        res.status(200).json(result);
+      }
+    });
+};
+
+
+
+
+exports.matchGet = (req, res) => {
+  const dbo = getDb();
+  const matchId = req.params.matchId;
+  let findData = {
+    _id: ObjectId(matchId),
+  };
+  dbo
+    .collection("match")
+    .find(findData)
+    .toArray((err, result) => {
+      if (err) {
+        console.log(err);
+        res.status(500).json({ message: "Error" });
+      } else {
+        console.log(result);
         res.status(200).json(result);
       }
     });
