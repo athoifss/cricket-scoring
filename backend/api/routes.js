@@ -25,6 +25,10 @@ router.post("/out", (req,res)=>{
   api.outSubmit(req,res)
 })
 
+router.get("/bat/:matchId", (req,res)=>{
+  api.battingGetAll(req,res);
+})   
+
 router.put("/currBowler", (req,res)=>{
   api.changeCurrBowler(req,res)
 })

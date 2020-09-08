@@ -139,7 +139,7 @@ exports.ballSubmit = async function (req, res) {
       runs,
       extras
     );
-    console.log("Bat && Bowl && BallByBall Updated");
+    console.log("Bat && Bowl && Match && BallByBall Updated");
     res.status(200).json({ message: "Success" });
   } catch (err) {
     console.log(err);
@@ -211,6 +211,26 @@ exports.changeCurrBowler = function (req, res) {
       res.status(200).json({ message: "Sucess" });
     }
   });
+};
+
+exports.battingGetAll = (req, res) => {
+  const dbo = getDb();
+  const matchId = req.params.matchId;
+  let findData = {
+    match: ObjectId(matchId),
+  };
+  dbo
+    .collection("batting")
+    .find(findData)
+    .toArray((err, result) => {
+      if (err) {
+        console.log(err);
+        res.status(500).json({ message: "Error" });
+      } else {
+        console.log(result)
+        res.status(200).json(result);
+      }
+    });
 };
 
 function updateBat(matchId, innings, batNum, run, isOut) {
